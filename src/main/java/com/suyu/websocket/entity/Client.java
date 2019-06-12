@@ -1,5 +1,8 @@
 package com.suyu.websocket.entity;
 
+import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
+import org.apache.commons.io.monitor.FileAlterationObserver;
+
 import javax.websocket.Session;
 import java.io.Serializable;
 

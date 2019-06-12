@@ -1,14 +1,22 @@
 package com.suyu.websocket.controller;
 
+import com.suyu.websocket.server.FileListener;
 import com.suyu.websocket.server.SocketServer;
+import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.commons.io.filefilter.HiddenFileFilter;
+import org.apache.commons.io.filefilter.IOFileFilter;
+import org.apache.commons.io.monitor.FileAlterationMonitor;
+import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * websocket
@@ -61,6 +69,17 @@ public class WebSocketController {
         return "success";
     }
 
+//    /**
+//     * 推送给所有在线用户
+//     * @return
+//     */
+//    @RequestMapping("sendAll")
+//    @ResponseBody
+//    public String sendAll(String msg){
+//        SocketServer.sendAll(msg);
+//        return "success";
+//    }
+
     /**
      * 推送给所有在线用户
      * @return
@@ -71,4 +90,6 @@ public class WebSocketController {
         SocketServer.sendAll(msg);
         return "success";
     }
+
+
 }

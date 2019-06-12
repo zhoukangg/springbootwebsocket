@@ -1,15 +1,22 @@
 package com.suyu.websocket.server;
 
 import com.suyu.websocket.entity.Client;
+import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.commons.io.filefilter.HiddenFileFilter;
+import org.apache.commons.io.filefilter.IOFileFilter;
+import org.apache.commons.io.monitor.FileAlterationMonitor;
+import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -39,6 +46,10 @@ public class SocketServer {
 	private final static String SYS_USERNAME = "niezhiliang9595";
 
 
+	//创建文件变化监听器
+	private static FileAlterationMonitor monitor;
+
+
 	/**
 	 *
 	 * 用户连接时触发，我们将其添加到
@@ -50,11 +61,47 @@ public class SocketServer {
 	@OnOpen
 	public void open(Session session,@PathParam(value="userName")String userName){
 
-			this.session = session;
-			socketServers.add(new Client(userName,session));
+		this.session = session;
+		socketServers.add(new Client(userName,session));
+		if(socketServers.size()==1){
+			observerFile(userName);
+		}
+		else{
+			logger.info("文件已经处于监听状态");
+		}
+		logger.info("客户端:【{}】连接成功",userName);
+	}
 
-			logger.info("客户端:【{}】连接成功",userName);
-
+	public void observerFile(String userName){
+		try {
+			// 监控目录
+			String rootDir = "/Users/kang/D/dataTest";
+			// 轮询间隔 5 秒
+			long interval = TimeUnit.SECONDS.toMillis(1);
+			// 创建过滤器
+			IOFileFilter directories = FileFilterUtils.and(
+					FileFilterUtils.directoryFileFilter(),
+					HiddenFileFilter.VISIBLE);
+			IOFileFilter files       = FileFilterUtils.and(
+					FileFilterUtils.fileFileFilter(),
+					FileFilterUtils.suffixFileFilter(".csv"));
+			//            IOFileFilter files       = FileFilterUtils.and(
+			//                    FileFilterUtils.fileFileFilter(),
+			//                    FileFilterUtils.nameFileFilter("kang.csv"));
+			IOFileFilter filter = FileFilterUtils.or(directories, files);
+			// 使用过滤器
+			FileAlterationObserver observer = new FileAlterationObserver(new File(rootDir), filter);
+			//不使用过滤器
+			//FileAlterationObserver observer = new FileAlterationObserver(new File(rootDir));
+			observer.addListener(new FileListener());
+			//创建文件变化监听器
+			logger.info("开始监听文件");
+			monitor = new FileAlterationMonitor(interval, observer);
+			// 开始监控
+			monitor.start();
+		}catch (Exception e){
+			logger.info(userName,"监听文件出错");
+		}
 	}
 
 	/**
@@ -87,7 +134,17 @@ public class SocketServer {
 
 				logger.info("客户端:【{}】断开连接",client.getUserName());
 				socketServers.remove(client);
-
+				if(socketServers.isEmpty()){
+					// 关闭监控
+					try {
+						if(socketServers.isEmpty()) {
+							monitor.stop();
+							logger.info("关闭监听文件");
+						}
+					}catch (Exception e){
+						logger.info("关闭监听文件出错");
+					}
+				}
 			}
 		});
 	}
@@ -195,4 +252,22 @@ public class SocketServer {
 			sendMessage(message,userName);
 		}
 	}
+
+
+	public synchronized static void sendResult(String message,String userName) {
+		socketServers.forEach(client ->{
+			if (userName.equals(client.getUserName())) {
+				try {
+					client.getSession().getBasicRemote().sendText(message);
+
+					logger.info("服务端推送给客户端 :【{}】",client.getUserName(),message);
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
+
+
 }
